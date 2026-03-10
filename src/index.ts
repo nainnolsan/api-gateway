@@ -70,12 +70,13 @@ async function startServer() {
   });
 
   // Start server
-  app.listen(config.port, () => {
-    console.log(`🚀 API Gateway ready at http://localhost:${config.port}`);
-    console.log(`📊 GraphQL endpoint: http://localhost:${config.port}/graphql`);
-    console.log(`💓 Health check: http://localhost:${config.port}/health`);
+  app.listen(config.port, '0.0.0.0', () => {
+    console.log(`🚀 API Gateway ready at http://0.0.0.0:${config.port}`);
+    console.log(`📊 GraphQL endpoint: /graphql`);
+    console.log(`💓 Health check: /health`);
     console.log(`🔗 Auth Service: ${config.authServiceUrl}`);
     console.log(`🌍 Environment: ${config.nodeEnv}`);
+    console.log(`🌐 CORS Origin: ${config.corsOrigin}`);
   });
 }
 
