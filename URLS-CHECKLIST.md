@@ -3,20 +3,20 @@
 ## Railway URLs (obtenerlas del dashboard de Railway)
 
 ### Auth Service (ya deployado)
-- URL pública: https://__________.up.railway.app
+- URL pública: auth-service-production-9602.up.railway.app
 - Puerto interno: 3001
 
 ### PostgreSQL Database (Railway)
 - DATABASE_URL: Se configura automáticamente en auth-service
 
 ### API Gateway (por deployar)
-- URL pública: (Se generará después del deploy)
+- URL pública: api-gateway-production-da00.up.railway.app
 - Puerto: 4000
 
 ## Vercel URLs
 
 ### Frontend (ya deployado o por deployar)
-- URL producción: https://__________.vercel.app
+- URL producción: https://viewsportfolio-p3oq1f1hv-nain-nolascos-projects.vercel.app/
 - URL desarrollo local: http://localhost:5173
 
 ---
@@ -53,7 +53,7 @@ VITE_GRAPHQL_URL=https://[TU-API-GATEWAY].up.railway.app/graphql
 En Railway, auth-service necesita permitir requests del API Gateway:
 
 ```
-CORS_ORIGIN=https://[API-GATEWAY].up.railway.app,https://[FRONTEND].vercel.app
+CORS_ORIGIN=api-gateway-production-da00.up.railway.app, https://viewsportfolio-p3oq1f1hv-nain-nolascos-projects.vercel.app/
 ```
 
 ---

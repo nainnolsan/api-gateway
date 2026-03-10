@@ -29,14 +29,18 @@ async function startServer() {
   // Start Apollo Server
   await server.start();
 
-  // Middleware
+  // Apply CORS globally (before routes)
+  app.use(cors({
+    origin: config.corsOrigin,
+    credentials: true,
+  }));
+  
+  // Parse JSON bodies
+  app.use(express.json());
+
+  // GraphQL endpoint
   app.use(
     '/graphql',
-    cors<cors.CorsRequest>({
-      origin: config.corsOrigin,
-      credentials: true,
-    }),
-    express.json(),
     expressMiddleware(server, {
       context: createContext,
     })
