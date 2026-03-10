@@ -38,6 +38,11 @@ async function startServer() {
   // Parse JSON bodies
   app.use(express.json());
 
+  // Handle OPTIONS preflight for GraphQL endpoint
+  app.options('/graphql', (req, res) => {
+    res.status(200).end();
+  });
+
   // GraphQL endpoint
   app.use(
     '/graphql',
