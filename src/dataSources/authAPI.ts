@@ -96,7 +96,7 @@ export class AuthAPI {
   // Register new user
   async register(input: RegisterInput): Promise<AuthResponse> {
     try {
-      const response = await this.client.post<AuthResponse>('/auth/register', input);
+      const response = await this.client.post<AuthResponse>('/api/auth/register', input);
       return response.data;
     } catch (error) {
       return this.handleError(error);
@@ -106,7 +106,7 @@ export class AuthAPI {
   // Login user
   async login(input: LoginInput): Promise<AuthResponse> {
     try {
-      const response = await this.client.post<AuthResponse>('/auth/login', input);
+      const response = await this.client.post<AuthResponse>('/api/auth/login', input);
       return response.data;
     } catch (error) {
       return this.handleError(error);
@@ -116,7 +116,7 @@ export class AuthAPI {
   // Refresh token
   async refreshToken(input: RefreshTokenInput): Promise<AuthResponse> {
     try {
-      const response = await this.client.post<AuthResponse>('/auth/refresh', input);
+      const response = await this.client.post<AuthResponse>('/api/auth/refresh', input);
       return response.data;
     } catch (error) {
       return this.handleError(error);
@@ -127,7 +127,7 @@ export class AuthAPI {
   async logout(refreshToken: string): Promise<{ success: boolean; message: string }> {
     try {
       const response = await this.client.post<{ success: boolean; message: string }>(
-        '/auth/logout',
+        '/api/auth/logout',
         { refreshToken }
       );
       return response.data;
@@ -139,7 +139,7 @@ export class AuthAPI {
   // Get user profile
   async getProfile(token: string): Promise<ProfileResponse> {
     try {
-      const response = await this.client.get<ProfileResponse>('/auth/profile', {
+      const response = await this.client.get<ProfileResponse>('/api/auth/profile', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
