@@ -10,7 +10,7 @@
 - DATABASE_URL: Se configura automáticamente en auth-service
 
 ### API Gateway (por deployar)
-- URL pública: api-gateway-production-da00.up.railway.app
+- URL pública: api-gateway-production-0b95.up.railway.app
 - Puerto: 4000
 
 ## Vercel URLs
@@ -46,7 +46,7 @@ GRAPHQL_PLAYGROUND=false
 Configurar en Vercel Dashboard → Settings → Environment Variables:
 
 ```
-VITE_GRAPHQL_URL=https://[TU-API-GATEWAY].up.railway.app/graphql
+VITE_GRAPHQL_URL=https://api-gateway-production-0b95.up.railway.app/graphql
 ```
 
 ### 4. Actualizar CORS en Auth Service
