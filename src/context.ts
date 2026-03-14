@@ -1,21 +1,59 @@
+import { randomUUID } from 'crypto';
 import { ExpressContextFunctionArgument } from '@apollo/server/express4';
+import jwt from 'jsonwebtoken';
+import { config } from './config';
 import { AuthAPI } from './dataSources/authAPI';
-import { Context } from './types';
+import { InternshipAPI } from './dataSources/internshipAPI';
+import { AuthenticatedUser } from './types';
 
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:3001';
+export interface GatewayContext {
+  authAPI: AuthAPI;
+  internshipAPI: InternshipAPI;
+  token?: string;
+  authHeader?: string;
+  requestId: string;
+  user?: AuthenticatedUser;
+}
+
+const getAuthenticatedUser = (token?: string): AuthenticatedUser | undefined => {
+  if (!token) {
+    return undefined;
+  }
+
+  try {
+    const payload = jwt.verify(token, config.jwtSecret) as { userId?: string; email?: string };
+
+    if (!payload.userId || !payload.email) {
+      return undefined;
+    }
+
+    return {
+      userId: payload.userId,
+      email: payload.email,
+    };
+  } catch {
+    return undefined;
+  }
+};
 
 export const createContext = async ({
   req,
-}: ExpressContextFunctionArgument): Promise<Context> => {
-  // Initialize data sources
-  const authAPI = new AuthAPI(AUTH_SERVICE_URL);
-
-  // Extract token from Authorization header
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+}: ExpressContextFunctionArgument): Promise<GatewayContext> => {
+  const requestId = req.headers['x-request-id']?.toString() || randomUUID();
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+  const user = getAuthenticatedUser(token);
 
   return {
-    authAPI,
+    authAPI: new AuthAPI(config.authServiceUrl, config.http.timeoutMs, config.http.retries),
+    internshipAPI: new InternshipAPI(
+      config.internshipServiceUrl,
+      config.http.timeoutMs,
+      config.http.retries
+    ),
     token,
+    authHeader,
+    requestId,
+    user,
   };
 };

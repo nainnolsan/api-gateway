@@ -1,8 +1,6 @@
-import { AuthAPI } from '../dataSources/authAPI';
-
-export interface Context {
-  authAPI: AuthAPI;
-  token?: string;
+export interface AuthenticatedUser {
+  userId: string;
+  email: string;
 }
 
 export interface User {

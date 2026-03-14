@@ -1,5 +1,4 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
-import { GraphQLError } from 'graphql';
+import { RestClient, ServiceHealth, UpstreamRequestContext } from '../utils/upstream';
 
 export interface RegisterInput {
   name: string;
@@ -41,112 +40,42 @@ export interface ProfileResponse {
   };
 }
 
-export class AuthAPI {
-  private client: AxiosInstance;
-
-  constructor(baseURL: string) {
-    this.client = axios.create({
+export class AuthAPI extends RestClient {
+  constructor(baseURL: string, timeoutMs: number, retries: number) {
+    super({
+      serviceName: 'auth-service',
       baseURL,
-      timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      timeoutMs,
+      retries,
     });
   }
 
-  // Handle errors from REST API
-  private handleError(error: unknown): never {
-    if (axios.isAxiosError(error)) {
-      const axiosError = error as AxiosError<{ message?: string; success?: boolean }>;
-      const message = axiosError.response?.data?.message || axiosError.message || 'Error en el servicio de autenticación';
-      const statusCode = axiosError.response?.status || 500;
-      
-      throw new GraphQLError(message, {
-        extensions: {
-          code: this.getErrorCode(statusCode),
-          statusCode,
-        },
-      });
-    }
-    
-    throw new GraphQLError('Error inesperado en el servicio de autenticación', {
-      extensions: {
-        code: 'INTERNAL_SERVER_ERROR',
-      },
-    });
+  async register(input: RegisterInput, requestId: string): Promise<AuthResponse> {
+    return this.post('/api/auth/register', { requestId }, input);
   }
 
-  private getErrorCode(statusCode: number): string {
-    switch (statusCode) {
-      case 400:
-        return 'BAD_REQUEST';
-      case 401:
-        return 'UNAUTHENTICATED';
-      case 403:
-        return 'FORBIDDEN';
-      case 404:
-        return 'NOT_FOUND';
-      case 409:
-        return 'CONFLICT';
-      default:
-        return 'INTERNAL_SERVER_ERROR';
-    }
+  async login(input: LoginInput, requestId: string): Promise<AuthResponse> {
+    return this.post('/api/auth/login', { requestId }, input);
   }
 
-  // Register new user
-  async register(input: RegisterInput): Promise<AuthResponse> {
-    try {
-      const response = await this.client.post<AuthResponse>('/api/auth/register', input);
-      return response.data;
-    } catch (error) {
-      return this.handleError(error);
-    }
+  async refreshToken(input: RefreshTokenInput, requestId: string): Promise<AuthResponse> {
+    return this.post('/api/auth/refresh', { requestId }, input);
   }
 
-  // Login user
-  async login(input: LoginInput): Promise<AuthResponse> {
-    try {
-      const response = await this.client.post<AuthResponse>('/api/auth/login', input);
-      return response.data;
-    } catch (error) {
-      return this.handleError(error);
-    }
+  async logout(refreshToken: string, requestId: string): Promise<{ success: boolean; message: string }> {
+    return this.post('/api/auth/logout', { requestId }, { refreshToken });
   }
 
-  // Refresh token
-  async refreshToken(input: RefreshTokenInput): Promise<AuthResponse> {
-    try {
-      const response = await this.client.post<AuthResponse>('/api/auth/refresh', input);
-      return response.data;
-    } catch (error) {
-      return this.handleError(error);
-    }
+  async getProfile(token: string, requestId: string): Promise<ProfileResponse> {
+    const context: UpstreamRequestContext = {
+      requestId,
+      authHeader: `Bearer ${token}`,
+    };
+
+    return this.get('/api/auth/profile', context);
   }
 
-  // Logout user
-  async logout(refreshToken: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await this.client.post<{ success: boolean; message: string }>(
-        '/api/auth/logout',
-        { refreshToken }
-      );
-      return response.data;
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  // Get user profile
-  async getProfile(token: string): Promise<ProfileResponse> {
-    try {
-      const response = await this.client.get<ProfileResponse>('/api/auth/profile', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      return response.data;
-    } catch (error) {
-      return this.handleError(error);
-    }
+  healthCheck(path: string, requestId: string): Promise<ServiceHealth> {
+    return super.healthCheck(path, requestId);
   }
 }

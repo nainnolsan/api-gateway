@@ -49,8 +49,19 @@ NODE_ENV=development
 # Auth Service URL
 AUTH_SERVICE_URL=http://localhost:3001
 
+# Internship Service URL
+INTERNSHIP_SERVICE_URL=http://localhost:3002
+
 # JWT Secret (debe coincidir con auth-service)
 JWT_SECRET=your_jwt_secret_key_here
+
+# Upstream HTTP
+UPSTREAM_TIMEOUT_MS=10000
+UPSTREAM_RETRIES=2
+
+# Health checks de upstream
+AUTH_SERVICE_HEALTH_PATH=/api/health
+INTERNSHIP_SERVICE_HEALTH_PATH=/api/health
 
 # CORS Origin (Frontend URL)
 CORS_ORIGIN=http://localhost:5173
@@ -79,8 +90,52 @@ npm start
 ## 📡 Endpoints
 
 - **GraphQL Playground**: `http://localhost:4000/graphql`
-- **Health Check**: `http://localhost:4000/health`
+- **Health Check agregado**: `http://localhost:4000/health`
 - **Root**: `http://localhost:4000/`
+
+## Gateway Contract
+
+### Rutas finales del gateway para frontend
+
+El frontend solo debe hablar con el gateway mediante `POST /graphql` y `GET /health`.
+
+#### Auth
+
+- `register(name, email, password): AuthPayload!`
+- `login(email, password): AuthPayload!`
+- `refreshToken(refreshToken): AuthPayload!`
+- `logout(refreshToken): Response!`
+- `me: ProfilePayload!`
+
+#### Internship service
+
+- `internshipDashboardMetrics: DashboardMetrics!`
+- `internshipFunnelFlow: FunnelFlow!`
+- `internshipApplications(filters): [InternshipApplication!]!`
+- `internshipPipeline: [PipelineColumn!]!`
+- `internshipAnalyticsOverview: AnalyticsOverview!`
+- `internshipEmailCenter: EmailCenter!`
+- `createInternshipApplication(input): InternshipApplication!`
+- `updateInternshipApplication(id, input): InternshipApplication!`
+- `connectInternshipEmailProvider(provider): EmailConnectionPayload!`
+- `gatewayHealth: GatewayHealth!`
+
+### Mapeo interno hacia upstream REST
+
+- `register` → `POST /api/auth/register`
+- `login` → `POST /api/auth/login`
+- `refreshToken` → `POST /api/auth/refresh`
+- `logout` → `POST /api/auth/logout`
+- `me` → `GET /api/auth/profile`
+- `internshipDashboardMetrics` → `GET /api/internships/dashboard/metrics`
+- `internshipFunnelFlow` → `GET /api/internships/dashboard/funnel`
+- `internshipApplications` → `GET /api/internships/applications`
+- `createInternshipApplication` → `POST /api/internships/applications`
+- `updateInternshipApplication` → `PATCH /api/internships/applications/:id`
+- `internshipPipeline` → `GET /api/internships/pipeline`
+- `internshipAnalyticsOverview` → `GET /api/internships/analytics/overview`
+- `internshipEmailCenter` → `GET /api/internships/emails`
+- `connectInternshipEmailProvider` → `POST /api/internships/emails/connect/:provider`
 
 ## 🔐 Autenticación
 
@@ -192,6 +247,90 @@ query HealthCheck {
 }
 ```
 
+### Health check agregado
+
+```graphql
+query GatewayHealth {
+  gatewayHealth {
+    status
+    timestamp
+    services {
+      service
+      status
+      statusCode
+      responseTimeMs
+      message
+    }
+  }
+}
+```
+
+### Dashboard de internships
+
+```graphql
+query InternshipDashboard {
+  internshipDashboardMetrics {
+    totalApplied
+    totalOnlineAssessments
+    totalInterviews
+    totalOffers
+    totalRejected
+    conversionRate
+  }
+}
+```
+
+### Crear aplicación
+
+```graphql
+mutation CreateInternshipApplication {
+  createInternshipApplication(
+    input: {
+      company: "Acme"
+      roleTitle: "Frontend Intern"
+      roleType: Internship
+      stage: Applied
+      appliedAt: "2026-03-13"
+      location: "Remote"
+    }
+  ) {
+    id
+    company
+    roleTitle
+    stage
+  }
+}
+```
+
+## Seguridad y forwarding
+
+- El gateway reenvía `Authorization` al servicio upstream.
+- Si el JWT es válido, también reenvía `x-user-id` y `x-user-email`.
+- Cada request genera o propaga `x-request-id` para trazabilidad entre servicios.
+- Las operaciones de internships requieren autenticación en el gateway antes de llamar al upstream.
+
+## Mapeo de errores estandarizado
+
+Los errores upstream llegan al frontend como errores GraphQL con `extensions` consistentes:
+
+- `BAD_REQUEST` para `400`
+- `UNAUTHENTICATED` para `401`
+- `FORBIDDEN` para `403`
+- `NOT_FOUND` para `404`
+- `CONFLICT` para `409`
+- `UNPROCESSABLE_ENTITY` para `422`
+- `RATE_LIMITED` para `429`
+- `UPSTREAM_TIMEOUT` para timeouts
+- `UPSTREAM_SERVICE_ERROR` para errores `5xx` del servicio upstream
+
+Además del `code`, el gateway incluye:
+
+- `statusCode`
+- `service`
+- `upstreamPath`
+- `requestId`
+- `retryable`
+
 ## 🐳 Docker
 
 ### Build
@@ -218,8 +357,13 @@ docker run -p 4000:4000 \
 3. **Configurar variables de entorno**:
    - `PORT` (Railway lo asigna automáticamente)
    - `AUTH_SERVICE_URL` (URL del auth-service en Railway)
+  - `INTERNSHIP_SERVICE_URL` (URL del internship-service en Railway)
    - `JWT_SECRET` (misma que auth-service)
    - `CORS_ORIGIN` (URL del frontend)
+  - `UPSTREAM_TIMEOUT_MS=10000`
+  - `UPSTREAM_RETRIES=2`
+  - `AUTH_SERVICE_HEALTH_PATH=/api/health`
+  - `INTERNSHIP_SERVICE_HEALTH_PATH=/api/health`
    - `NODE_ENV=production`
    - `GRAPHQL_INTROSPECTION=false` (en producción)
    - `GRAPHQL_PLAYGROUND=false` (en producción)
@@ -283,10 +427,10 @@ const client = new ApolloClient({
 └──────┬──────┘
        │ REST
        ▼
-┌─────────────┐
-│Auth Service │
-│   (REST)    │
-└─────────────┘
+┌─────────────┐   ┌──────────────────┐
+│Auth Service │   │ Internship Svc   │
+│   (REST)    │   │      (REST)      │
+└─────────────┘   └──────────────────┘
 ```
 
 ## 🛠️ Desarrollo
@@ -308,6 +452,23 @@ Accede a `http://localhost:4000/graphql` y usa el playground integrado para prob
 - Actúa como proxy entre el frontend y los microservicios
 - Todos los errores de los servicios se transforman en errores de GraphQL
 - Los tokens JWT se validan en el auth-service
+- Las lecturas upstream usan timeout y retries controlados
+- El health check REST y GraphQL agrega auth-service e internship-service
+
+## Checklist E2E
+
+- `register` crea usuario vía gateway y devuelve tokens.
+- `login` devuelve `accessToken` y `refreshToken` válidos.
+- `me` responde correctamente usando `Authorization: Bearer <token>`.
+- `gatewayHealth` reporta `auth-service` e `internship-service`.
+- `internshipDashboardMetrics` responde con usuario autenticado.
+- `internshipApplications(filters)` propaga query params correctamente.
+- `createInternshipApplication` crea un registro sin reintentos duplicados.
+- `updateInternshipApplication` actualiza el recurso correcto por `id`.
+- `connectInternshipEmailProvider` devuelve `redirectUrl` válido.
+- Un `401` de upstream llega como `UNAUTHENTICATED`.
+- Un timeout de upstream llega como `UPSTREAM_TIMEOUT`.
+- Un `5xx` de upstream llega como `UPSTREAM_SERVICE_ERROR` con `requestId`.
 
 ## 🤝 Contribuir
 

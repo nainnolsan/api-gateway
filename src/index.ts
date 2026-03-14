@@ -7,11 +7,19 @@ import { typeDefs } from './schema';
 import { resolvers } from './resolvers';
 import { createContext } from './context';
 import { config } from './config';
+import { AuthAPI } from './dataSources/authAPI';
+import { InternshipAPI } from './dataSources/internshipAPI';
 
 
 async function startServer() {
   // Create Express app
   const app = express();
+  const authAPI = new AuthAPI(config.authServiceUrl, config.http.timeoutMs, config.http.retries);
+  const internshipAPI = new InternshipAPI(
+    config.internshipServiceUrl,
+    config.http.timeoutMs,
+    config.http.retries
+  );
 
   // Create Apollo Server
   const server = new ApolloServer({
@@ -52,11 +60,19 @@ async function startServer() {
   );
 
   // Health check endpoint
-  app.get('/health', (req, res) => {
-    res.json({
-      status: 'ok',
+  app.get('/health', async (req, res) => {
+    const requestId = req.headers['x-request-id']?.toString() || 'health-check';
+    const services = await Promise.all([
+      authAPI.healthCheck(config.health.authPath, requestId),
+      internshipAPI.healthCheck(config.health.internshipPath, requestId),
+    ]);
+    const hasFailure = services.some((service) => service.status === 'down');
+
+    res.status(hasFailure ? 503 : 200).json({
+      status: hasFailure ? 'degraded' : 'ok',
       service: 'api-gateway',
       timestamp: new Date().toISOString(),
+      services,
     });
   });
 
@@ -75,6 +91,7 @@ async function startServer() {
     console.log(`📊 GraphQL endpoint: /graphql`);
     console.log(`💓 Health check: /health`);
     console.log(`🔗 Auth Service: ${config.authServiceUrl}`);
+    console.log(`🎯 Internship Service: ${config.internshipServiceUrl}`);
     console.log(`🌍 Environment: ${config.nodeEnv}`);
     console.log(`🌐 CORS Origin: ${config.corsOrigin}`);
   });

@@ -1,10 +1,11 @@
 import { GraphQLError } from 'graphql';
-import { Context } from '../types';
+import { config } from '../config';
+import { GatewayContext } from '../context';
 
 export const authResolvers = {
   Query: {
     // Get current user profile
-    me: async (_: unknown, __: unknown, context: Context) => {
+    me: async (_: unknown, __: unknown, context: GatewayContext) => {
       const { authAPI, token } = context;
 
       if (!token) {
@@ -16,7 +17,7 @@ export const authResolvers = {
       }
 
       try {
-        const result = await authAPI.getProfile(token);
+        const result = await authAPI.getProfile(token, context.requestId);
         return result;
       } catch (error) {
         throw error;
@@ -27,6 +28,18 @@ export const authResolvers = {
     health: () => {
       return 'API Gateway is running! 🚀';
     },
+    gatewayHealth: async (_: unknown, __: unknown, context: GatewayContext) => {
+      const services = await Promise.all([
+        context.authAPI.healthCheck(config.health.authPath, context.requestId),
+        context.internshipAPI.healthCheck(config.health.internshipPath, context.requestId),
+      ]);
+
+      return {
+        status: services.some((service) => service.status === 'down') ? 'degraded' : 'ok',
+        timestamp: new Date().toISOString(),
+        services,
+      };
+    },
   },
 
   Mutation: {
@@ -34,12 +47,12 @@ export const authResolvers = {
     register: async (
       _: unknown,
       { name, email, password }: { name: string; email: string; password: string },
-      context: Context
+      context: GatewayContext
     ) => {
       const { authAPI } = context;
 
       try {
-        const result = await authAPI.register({ name, email, password });
+        const result = await authAPI.register({ name, email, password }, context.requestId);
         return {
           success: result.success,
           message: result.message,
@@ -56,12 +69,12 @@ export const authResolvers = {
     login: async (
       _: unknown,
       { email, password }: { email: string; password: string },
-      context: Context
+      context: GatewayContext
     ) => {
       const { authAPI } = context;
 
       try {
-        const result = await authAPI.login({ email, password });
+        const result = await authAPI.login({ email, password }, context.requestId);
         return {
           success: result.success,
           message: result.message,
@@ -78,12 +91,12 @@ export const authResolvers = {
     refreshToken: async (
       _: unknown,
       { refreshToken }: { refreshToken: string },
-      context: Context
+      context: GatewayContext
     ) => {
       const { authAPI } = context;
 
       try {
-        const result = await authAPI.refreshToken({ refreshToken });
+        const result = await authAPI.refreshToken({ refreshToken }, context.requestId);
         return {
           success: result.success,
           message: result.message,
@@ -100,12 +113,12 @@ export const authResolvers = {
     logout: async (
       _: unknown,
       { refreshToken }: { refreshToken: string },
-      context: Context
+      context: GatewayContext
     ) => {
       const { authAPI } = context;
 
       try {
-        const result = await authAPI.logout(refreshToken);
+        const result = await authAPI.logout(refreshToken, context.requestId);
         return {
           success: result.success,
           message: result.message,
