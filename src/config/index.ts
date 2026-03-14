@@ -7,7 +7,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   authServiceUrl: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
   internshipServiceUrl: process.env.INTERNSHIP_SERVICE_URL || 'http://localhost:3002',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map(o => o.trim()),
   jwtSecret: process.env.JWT_SECRET || 'your_jwt_secret_key_here',
   health: {
     authPath: process.env.AUTH_SERVICE_HEALTH_PATH || '/api/health',
