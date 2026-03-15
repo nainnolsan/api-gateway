@@ -33,10 +33,16 @@ export interface ProfileResponse {
   success: boolean;
   message: string;
   data?: {
-    id: string;
-    name: string;
-    email: string;
-    createdAt: string;
+    id?: string;
+    name?: string;
+    email?: string;
+    createdAt?: string;
+    user?: {
+      id: string;
+      name: string;
+      email: string;
+      createdAt?: string;
+    };
   };
 }
 

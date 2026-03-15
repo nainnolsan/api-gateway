@@ -15,6 +15,15 @@ const requireAuth = (context: GatewayContext): void => {
       },
     });
   }
+
+  if (!context.user?.userId) {
+    throw new GraphQLError('No se pudo resolver la identidad del usuario desde el token', {
+      extensions: {
+        code: 'UNAUTHENTICATED',
+        requestId: context.requestId,
+      },
+    });
+  }
 };
 
 const getUpstreamContext = (context: GatewayContext) => ({
