@@ -109,6 +109,77 @@ export interface EmailCenter {
   threads: EmailThread[];
 }
 
+// ---- Service-level response shapes (internal) ----
+
+interface ServiceWrapper<T> {
+  success: boolean;
+  data: T;
+}
+
+interface ServiceMetricsData {
+  summary: { total: number; active: number; offers: number; rejections: number };
+  byStatus: { status: string; count: number }[];
+  last30DaysEvents: { day: string; events: number }[];
+  emails: { inbound: number; outbound: number };
+}
+
+interface ServiceApplication {
+  id: string;
+  user_id: string;
+  company_id: string | null;
+  company_name: string | null;
+  role_title: string;
+  status: string;
+  source: string | null;
+  location: string | null;
+  salary_range: string | null;
+  applied_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- Mapping helpers ----
+
+const DB_TO_STAGE: Record<string, string> = {
+  saved: 'Applied',
+  applied: 'Applied',
+  screening: 'OnlineAssessment',
+  interview: 'Interview',
+  technical: 'Interview',
+  offer: 'Offer',
+  rejected: 'Rejected',
+  withdrawn: 'Rejected',
+  hired: 'Offer',
+};
+
+const STAGE_TO_DB: Record<string, string> = {
+  Applied: 'applied',
+  OnlineAssessment: 'screening',
+  Interview: 'interview',
+  Offer: 'offer',
+  Rejected: 'rejected',
+};
+
+function mapApplication(row: ServiceApplication): InternshipApplication {
+  return {
+    id: row.id,
+    company: row.company_name ?? 'Unknown',
+    roleTitle: row.role_title,
+    roleType: 'Internship',
+    stage: DB_TO_STAGE[row.status] ?? 'Applied',
+    appliedAt: row.applied_at ?? row.created_at,
+    lastUpdatedAt: row.updated_at,
+    location: row.location ?? undefined,
+    source: row.source ?? undefined,
+    salaryRange: row.salary_range ?? undefined,
+    notes: row.notes ?? undefined,
+    contactEmail: undefined,
+  };
+}
+
+const STAGE_ORDER = ['Applied', 'OnlineAssessment', 'Interview', 'Offer', 'Rejected'] as const;
+
 export class InternshipAPI extends RestClient {
   constructor(baseURL: string, timeoutMs: number, retries: number) {
     super({
@@ -119,53 +190,150 @@ export class InternshipAPI extends RestClient {
     });
   }
 
-  getDashboardMetrics(context: UpstreamRequestContext): Promise<DashboardMetrics> {
-    return this.get('/api/internships/dashboard/metrics', context);
+  async getDashboardMetrics(context: UpstreamRequestContext): Promise<DashboardMetrics> {
+    const res = await this.get<ServiceWrapper<ServiceMetricsData>>('/api/metrics/dashboard', context);
+    const d = res.data;
+    const byStatus = d.byStatus ?? [];
+    const total = d.summary.total;
+
+    const countFor = (...statuses: string[]) =>
+      byStatus.filter(s => statuses.includes(s.status)).reduce((acc, s) => acc + s.count, 0);
+
+    const totalOffers = countFor('offer', 'hired');
+    const conversionRate = total > 0 ? parseFloat(((totalOffers / total) * 100).toFixed(1)) : 0;
+
+    return {
+      totalApplied: total,
+      totalOnlineAssessments: countFor('screening'),
+      totalInterviews: countFor('interview', 'technical'),
+      totalOffers,
+      totalRejected: countFor('rejected', 'withdrawn'),
+      conversionRate,
+    };
   }
 
-  getFunnelFlow(context: UpstreamRequestContext): Promise<FunnelFlow> {
-    return this.get('/api/internships/dashboard/funnel', context);
+  async getFunnelFlow(context: UpstreamRequestContext): Promise<FunnelFlow> {
+    const res = await this.get<ServiceWrapper<ServiceMetricsData>>('/api/metrics/dashboard', context);
+    const byStatus = res.data.byStatus ?? [];
+    const stages = ['applied', 'screening', 'interview', 'offer'];
+    const nodes: FunnelNode[] = stages.map(s => ({ name: s }));
+    const links: FunnelLink[] = [];
+
+    const countFor = (status: string) =>
+      byStatus.find(s => s.status === status)?.count ?? 0;
+
+    const stageCounts = stages.map(s => countFor(s));
+    for (let i = 0; i < stages.length - 1; i++) {
+      const value = Math.min(stageCounts[i], stageCounts[i + 1]);
+      if (value > 0) {
+        links.push({ source: i, target: i + 1, value });
+      }
+    }
+
+    return { nodes, links };
   }
 
-  getApplications(
+  async getApplications(
     filters: ApplicationFiltersInput,
     context: UpstreamRequestContext
   ): Promise<InternshipApplication[]> {
-    return this.get('/api/internships/applications', context, filters as Record<string, unknown>);
+    const params: Record<string, unknown> = {};
+    if (filters.stage) params.status = STAGE_TO_DB[filters.stage] ?? filters.stage.toLowerCase();
+    if (filters.company || filters.q) params.search = filters.company ?? filters.q;
+
+    const res = await this.get<ServiceWrapper<ServiceApplication[]>>('/api/applications', context, params);
+    return (res.data ?? []).map(mapApplication);
   }
 
-  createApplication(
+  async createApplication(
     input: CreateApplicationInput,
     context: UpstreamRequestContext
   ): Promise<InternshipApplication> {
-    return this.post('/api/internships/applications', context, input);
+    const body: Record<string, unknown> = {
+      companyName: input.company,
+      roleTitle: input.roleTitle,
+      status: STAGE_TO_DB[input.stage] ?? 'applied',
+      appliedAt: input.appliedAt,
+    };
+    if (input.location) body.location = input.location;
+    if (input.source) body.source = input.source;
+    if (input.salaryRange) body.salaryRange = input.salaryRange;
+    if (input.notes) body.notes = input.notes;
+
+    const res = await this.post<ServiceWrapper<ServiceApplication>>('/api/applications', context, body);
+    return mapApplication(res.data);
   }
 
-  updateApplication(
+  async updateApplication(
     id: string,
     input: UpdateApplicationInput,
     context: UpstreamRequestContext
   ): Promise<InternshipApplication> {
-    return this.patch(`/api/internships/applications/${id}`, context, input);
+    const body: Record<string, unknown> = {};
+    if (input.company !== undefined) body.companyName = input.company;
+    if (input.roleTitle !== undefined) body.roleTitle = input.roleTitle;
+    if (input.stage !== undefined) body.status = STAGE_TO_DB[input.stage] ?? input.stage.toLowerCase();
+    if (input.appliedAt !== undefined) body.appliedAt = input.appliedAt;
+    if (input.location !== undefined) body.location = input.location;
+    if (input.source !== undefined) body.source = input.source;
+    if (input.salaryRange !== undefined) body.salaryRange = input.salaryRange;
+    if (input.notes !== undefined) body.notes = input.notes;
+
+    const res = await this.patch<ServiceWrapper<ServiceApplication>>(`/api/applications/${id}`, context, body);
+    return mapApplication(res.data);
   }
 
-  getPipelineBoard(context: UpstreamRequestContext): Promise<PipelineColumn[]> {
-    return this.get('/api/internships/pipeline', context);
+  async getPipelineBoard(context: UpstreamRequestContext): Promise<PipelineColumn[]> {
+    const res = await this.get<ServiceWrapper<ServiceApplication[]>>('/api/applications', context);
+    const apps = (res.data ?? []).map(mapApplication);
+
+    const columnMap = new Map<string, InternshipApplication[]>(
+      STAGE_ORDER.map(s => [s, []])
+    );
+    for (const app of apps) {
+      const col = columnMap.get(app.stage) ?? columnMap.get('Applied')!;
+      col.push(app);
+    }
+
+    return STAGE_ORDER.map(stage => ({
+      stage,
+      total: columnMap.get(stage)!.length,
+      applications: columnMap.get(stage)!,
+    }));
   }
 
-  getAnalyticsOverview(context: UpstreamRequestContext): Promise<AnalyticsOverview> {
-    return this.get('/api/internships/analytics/overview', context);
+  async getAnalyticsOverview(context: UpstreamRequestContext): Promise<AnalyticsOverview> {
+    const res = await this.get<ServiceWrapper<ServiceMetricsData>>('/api/metrics/dashboard', context);
+    const d = res.data;
+
+    const daily: DailyApplicationsPoint[] = (d.last30DaysEvents ?? []).map(e => ({
+      date: e.day,
+      applied: e.events,
+      interview: 0,
+      offer: 0,
+    }));
+
+    const merged = new Map<string, number>();
+    for (const item of (d.byStatus ?? [])) {
+      const stage = DB_TO_STAGE[item.status] ?? 'Applied';
+      merged.set(stage, (merged.get(stage) ?? 0) + item.count);
+    }
+    const stageDistribution: StageDistributionItem[] = Array.from(merged.entries()).map(
+      ([stage, value]) => ({ stage, value })
+    );
+
+    return { daily, stageDistribution };
   }
 
-  getEmailCenter(context: UpstreamRequestContext): Promise<EmailCenter> {
-    return this.get('/api/internships/emails', context);
+  getEmailCenter(_context: UpstreamRequestContext): Promise<EmailCenter> {
+    return Promise.resolve({ connectors: [], threads: [] });
   }
 
   connectEmailProvider(
-    provider: EmailProvider,
-    context: UpstreamRequestContext
+    _provider: EmailProvider,
+    _context: UpstreamRequestContext
   ): Promise<{ redirectUrl: string }> {
-    return this.post(`/api/internships/emails/connect/${provider}`, context);
+    return Promise.resolve({ redirectUrl: '' });
   }
 
   healthCheck(path: string, requestId: string): Promise<ServiceHealth> {
