@@ -18,7 +18,21 @@ export const authResolvers = {
 
       try {
         const result = await authAPI.getProfile(token, context.requestId);
-        return result;
+        const user = result.data?.user;
+        const flatData = user
+          ? {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              createdAt: user.createdAt,
+            }
+          : result.data;
+
+        return {
+          success: result.success,
+          message: result.message,
+          data: flatData,
+        };
       } catch (error) {
         throw error;
       }
