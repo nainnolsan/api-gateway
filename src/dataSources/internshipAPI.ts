@@ -141,6 +141,11 @@ interface ServiceMetricsData {
   emails: { inbound: number; outbound: number };
 }
 
+interface ServiceFunnelFlowData {
+  nodes: FunnelNode[];
+  links: FunnelLink[];
+}
+
 interface ServiceApplication {
   id: string;
   user_id: string;
@@ -249,24 +254,8 @@ export class InternshipAPI extends RestClient {
   }
 
   async getFunnelFlow(context: UpstreamRequestContext): Promise<FunnelFlow> {
-    const res = await this.get<ServiceWrapper<ServiceMetricsData>>('/api/metrics/dashboard', context);
-    const byStatus = res.data.byStatus ?? [];
-    const stages = ['applied', 'screening', 'interview', 'offer'];
-    const nodes: FunnelNode[] = stages.map(s => ({ name: s }));
-    const links: FunnelLink[] = [];
-
-    const countFor = (status: string) =>
-      byStatus.find(s => s.status === status)?.count ?? 0;
-
-    const stageCounts = stages.map(s => countFor(s));
-    for (let i = 0; i < stages.length - 1; i++) {
-      const value = Math.min(stageCounts[i], stageCounts[i + 1]);
-      if (value > 0) {
-        links.push({ source: i, target: i + 1, value });
-      }
-    }
-
-    return { nodes, links };
+    const res = await this.get<ServiceWrapper<ServiceFunnelFlowData>>('/api/metrics/funnel-flow', context);
+    return res.data;
   }
 
   async getApplications(
