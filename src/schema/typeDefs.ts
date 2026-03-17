@@ -103,6 +103,19 @@ export const typeDefs = `#graphql
     links: [FunnelLink!]!
   }
 
+  type PipelineEvent {
+    id: ID!
+    fromStage: ApplicationStage
+    toStage: ApplicationStage!
+    eventDate: String!
+    notes: String
+  }
+
+  type ApplicationJourney {
+    application: InternshipApplication!
+    stageTimeline: [PipelineEvent!]!
+  }
+
   input InternshipApplicationFiltersInput {
     stage: ApplicationStage
     company: String
@@ -136,6 +149,12 @@ export const typeDefs = `#graphql
     salaryRange: String
     notes: String
     contactEmail: String
+  }
+
+  input AddInternshipStageEventInput {
+    toStage: ApplicationStage!
+    eventDate: String
+    notes: String
   }
 
   type PipelineColumn {
@@ -197,6 +216,7 @@ export const typeDefs = `#graphql
     internshipDashboardMetrics: DashboardMetrics!
     internshipFunnelFlow: FunnelFlow!
     internshipApplications(filters: InternshipApplicationFiltersInput): [InternshipApplication!]!
+    internshipApplicationJourney(id: ID!): ApplicationJourney!
     internshipPipeline: [PipelineColumn!]!
     internshipAnalyticsOverview: AnalyticsOverview!
     internshipEmailCenter: EmailCenter!
@@ -229,6 +249,7 @@ export const typeDefs = `#graphql
 
     createInternshipApplication(input: CreateInternshipApplicationInput!): InternshipApplication!
     updateInternshipApplication(id: ID!, input: UpdateInternshipApplicationInput!): InternshipApplication!
+    addInternshipStageEvent(id: ID!, input: AddInternshipStageEventInput!): PipelineEvent!
     connectInternshipEmailProvider(provider: EmailProvider!): EmailConnectionPayload!
   }
 `;

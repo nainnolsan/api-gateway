@@ -41,6 +41,19 @@ export interface InternshipApplication {
   contactEmail?: string;
 }
 
+export interface PipelineEvent {
+  id: string;
+  fromStage?: string;
+  toStage: string;
+  eventDate: string;
+  notes?: string;
+}
+
+export interface ApplicationJourney {
+  application: InternshipApplication;
+  stageTimeline: PipelineEvent[];
+}
+
 export interface DashboardMetrics {
   totalApplied: number;
   totalOnlineAssessments: number;
@@ -139,6 +152,14 @@ interface ServiceApplication {
   updated_at: string;
 }
 
+interface ServicePipelineEvent {
+  id: string;
+  from_status: string | null;
+  to_status: string;
+  event_date: string;
+  notes: string | null;
+}
+
 // ---- Mapping helpers ----
 
 const DB_TO_STAGE: Record<string, string> = {
@@ -175,6 +196,16 @@ function mapApplication(row: ServiceApplication): InternshipApplication {
     salaryRange: row.salary_range ?? undefined,
     notes: row.notes ?? undefined,
     contactEmail: undefined,
+  };
+}
+
+function mapPipelineEvent(row: ServicePipelineEvent): PipelineEvent {
+  return {
+    id: row.id,
+    fromStage: row.from_status ? (DB_TO_STAGE[row.from_status] ?? 'Applied') : undefined,
+    toStage: DB_TO_STAGE[row.to_status] ?? 'Applied',
+    eventDate: row.event_date,
+    notes: row.notes ?? undefined,
   };
 }
 
@@ -281,6 +312,40 @@ export class InternshipAPI extends RestClient {
 
     const res = await this.patch<ServiceWrapper<ServiceApplication>>(`/api/applications/${id}`, context, body);
     return mapApplication(res.data);
+  }
+
+  async getApplicationJourney(id: string, context: UpstreamRequestContext): Promise<ApplicationJourney> {
+    const appRes = await this.get<ServiceWrapper<ServiceApplication>>(`/api/applications/${id}`, context);
+    const timelineRes = await this.get<ServiceWrapper<ServicePipelineEvent[]>>(
+      `/api/applications/${id}/pipeline-events`,
+      context,
+    );
+
+    return {
+      application: mapApplication(appRes.data),
+      stageTimeline: (timelineRes.data ?? []).map(mapPipelineEvent),
+    };
+  }
+
+  async addStageEvent(
+    id: string,
+    input: { toStage: string; eventDate?: string; notes?: string },
+    context: UpstreamRequestContext,
+  ): Promise<PipelineEvent> {
+    const body: Record<string, unknown> = {
+      toStatus: STAGE_TO_DB[input.toStage] ?? input.toStage.toLowerCase(),
+    };
+
+    if (input.eventDate) body.eventDate = input.eventDate;
+    if (input.notes) body.notes = input.notes;
+
+    const res = await this.post<ServiceWrapper<ServicePipelineEvent>>(
+      `/api/applications/${id}/pipeline-events`,
+      context,
+      body,
+    );
+
+    return mapPipelineEvent(res.data);
   }
 
   async getPipelineBoard(context: UpstreamRequestContext): Promise<PipelineColumn[]> {

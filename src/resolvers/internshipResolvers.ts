@@ -2,7 +2,9 @@ import { GraphQLError } from 'graphql';
 import { GatewayContext } from '../context';
 import {
   ApplicationFiltersInput,
+  ApplicationJourney,
   CreateApplicationInput,
+  PipelineEvent,
   UpdateApplicationInput,
 } from '../dataSources/internshipAPI';
 
@@ -50,6 +52,14 @@ export const internshipResolvers = {
       requireAuth(context);
       return context.internshipAPI.getApplications(filters || {}, getUpstreamContext(context));
     },
+    internshipApplicationJourney: async (
+      _: unknown,
+      { id }: { id: string },
+      context: GatewayContext
+    ): Promise<ApplicationJourney> => {
+      requireAuth(context);
+      return context.internshipAPI.getApplicationJourney(id, getUpstreamContext(context));
+    },
     internshipPipeline: async (_: unknown, __: unknown, context: GatewayContext) => {
       requireAuth(context);
       return context.internshipAPI.getPipelineBoard(getUpstreamContext(context));
@@ -79,6 +89,14 @@ export const internshipResolvers = {
     ) => {
       requireAuth(context);
       return context.internshipAPI.updateApplication(id, input, getUpstreamContext(context));
+    },
+    addInternshipStageEvent: async (
+      _: unknown,
+      { id, input }: { id: string; input: { toStage: string; eventDate?: string; notes?: string } },
+      context: GatewayContext
+    ): Promise<PipelineEvent> => {
+      requireAuth(context);
+      return context.internshipAPI.addStageEvent(id, input, getUpstreamContext(context));
     },
     connectInternshipEmailProvider: async (
       _: unknown,
