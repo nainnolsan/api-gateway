@@ -1,6 +1,7 @@
 import { GraphQLError } from 'graphql';
 import { GatewayContext } from '../context';
 import {
+  ActionResponse,
   ApplicationFiltersInput,
   ApplicationJourney,
   CreateApplicationInput,
@@ -90,6 +91,14 @@ export const internshipResolvers = {
       requireAuth(context);
       return context.internshipAPI.updateApplication(id, input, getUpstreamContext(context));
     },
+    deleteInternshipApplication: async (
+      _: unknown,
+      { id }: { id: string },
+      context: GatewayContext
+    ): Promise<ActionResponse> => {
+      requireAuth(context);
+      return context.internshipAPI.deleteApplication(id, getUpstreamContext(context));
+    },
     addInternshipStageEvent: async (
       _: unknown,
       { id, input }: { id: string; input: { toStage: string; eventDate?: string; notes?: string } },
@@ -97,6 +106,22 @@ export const internshipResolvers = {
     ): Promise<PipelineEvent> => {
       requireAuth(context);
       return context.internshipAPI.addStageEvent(id, input, getUpstreamContext(context));
+    },
+    updateInternshipStageEvent: async (
+      _: unknown,
+      { id, eventId, input }: { id: string; eventId: string; input: { toStage?: string; eventDate?: string; notes?: string } },
+      context: GatewayContext
+    ): Promise<PipelineEvent> => {
+      requireAuth(context);
+      return context.internshipAPI.updateStageEvent(id, eventId, input, getUpstreamContext(context));
+    },
+    deleteInternshipStageEvent: async (
+      _: unknown,
+      { id, eventId }: { id: string; eventId: string },
+      context: GatewayContext
+    ): Promise<ActionResponse> => {
+      requireAuth(context);
+      return context.internshipAPI.deleteStageEvent(id, eventId, getUpstreamContext(context));
     },
     connectInternshipEmailProvider: async (
       _: unknown,

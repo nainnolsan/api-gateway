@@ -54,6 +54,11 @@ export interface ApplicationJourney {
   stageTimeline: PipelineEvent[];
 }
 
+export interface ActionResponse {
+  success: boolean;
+  message: string;
+}
+
 export interface DashboardMetrics {
   totalApplied: number;
   totalOnlineAssessments: number;
@@ -314,6 +319,14 @@ export class InternshipAPI extends RestClient {
     return mapApplication(res.data);
   }
 
+  async deleteApplication(id: string, context: UpstreamRequestContext): Promise<ActionResponse> {
+    await this.delete(`/api/applications/${id}`, context);
+    return {
+      success: true,
+      message: 'Application deleted successfully',
+    };
+  }
+
   async getApplicationJourney(id: string, context: UpstreamRequestContext): Promise<ApplicationJourney> {
     const appRes = await this.get<ServiceWrapper<ServiceApplication>>(`/api/applications/${id}`, context);
     const timelineRes = await this.get<ServiceWrapper<ServicePipelineEvent[]>>(
@@ -346,6 +359,35 @@ export class InternshipAPI extends RestClient {
     );
 
     return mapPipelineEvent(res.data);
+  }
+
+  async updateStageEvent(
+    id: string,
+    eventId: string,
+    input: { toStage?: string; eventDate?: string; notes?: string },
+    context: UpstreamRequestContext,
+  ): Promise<PipelineEvent> {
+    const body: Record<string, unknown> = {};
+
+    if (input.toStage !== undefined) body.toStatus = STAGE_TO_DB[input.toStage] ?? input.toStage.toLowerCase();
+    if (input.eventDate !== undefined) body.eventDate = input.eventDate;
+    if (input.notes !== undefined) body.notes = input.notes;
+
+    const res = await this.patch<ServiceWrapper<ServicePipelineEvent>>(
+      `/api/applications/${id}/pipeline-events/${eventId}`,
+      context,
+      body,
+    );
+
+    return mapPipelineEvent(res.data);
+  }
+
+  async deleteStageEvent(id: string, eventId: string, context: UpstreamRequestContext): Promise<ActionResponse> {
+    await this.delete(`/api/applications/${id}/pipeline-events/${eventId}`, context);
+    return {
+      success: true,
+      message: 'Pipeline event deleted successfully',
+    };
   }
 
   async getPipelineBoard(context: UpstreamRequestContext): Promise<PipelineColumn[]> {

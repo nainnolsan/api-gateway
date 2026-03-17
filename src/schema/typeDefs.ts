@@ -249,7 +249,10 @@ export const typeDefs = `#graphql
 
     createInternshipApplication(input: CreateInternshipApplicationInput!): InternshipApplication!
     updateInternshipApplication(id: ID!, input: UpdateInternshipApplicationInput!): InternshipApplication!
+    deleteInternshipApplication(id: ID!): Response!
     addInternshipStageEvent(id: ID!, input: AddInternshipStageEventInput!): PipelineEvent!
+    updateInternshipStageEvent(id: ID!, eventId: ID!, input: AddInternshipStageEventInput!): PipelineEvent!
+    deleteInternshipStageEvent(id: ID!, eventId: ID!): Response!
     connectInternshipEmailProvider(provider: EmailProvider!): EmailConnectionPayload!
   }
 `;

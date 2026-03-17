@@ -110,6 +110,22 @@ export class RestClient {
     });
   }
 
+  protected async delete<T>(
+    path: string,
+    context: UpstreamRequestContext,
+    data?: unknown
+  ): Promise<T> {
+    return this.request<T>({
+      method: 'DELETE',
+      path,
+      data,
+      requestId: context.requestId,
+      authHeader: context.authHeader,
+      identity: context.identity,
+      retryable: false,
+    });
+  }
+
   async healthCheck(path: string, requestId: string): Promise<ServiceHealth> {
     const startTime = Date.now();
 
