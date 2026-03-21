@@ -205,6 +205,21 @@ export const typeDefs = `#graphql
     redirectUrl: String!
   }
 
+  type StageLayoutItem {
+    id: String!
+    label: String!
+    position: Int!
+    enabled: Boolean!
+    isCustom: Boolean!
+  }
+
+  input StageLayoutItemInput {
+    id: String!
+    label: String!
+    enabled: Boolean!
+    isCustom: Boolean!
+  }
+
   # Queries
   type Query {
     # Get current user profile (requires authentication)
@@ -220,6 +235,7 @@ export const typeDefs = `#graphql
     internshipPipeline: [PipelineColumn!]!
     internshipAnalyticsOverview: AnalyticsOverview!
     internshipEmailCenter: EmailCenter!
+    internshipStageLayout: [StageLayoutItem!]!
   }
 
   # Mutations
@@ -254,5 +270,6 @@ export const typeDefs = `#graphql
     updateInternshipStageEvent(id: ID!, eventId: ID!, input: AddInternshipStageEventInput!): PipelineEvent!
     deleteInternshipStageEvent(id: ID!, eventId: ID!): Response!
     connectInternshipEmailProvider(provider: EmailProvider!): EmailConnectionPayload!
+    saveInternshipStageLayout(layout: [StageLayoutItemInput!]!): Response!
   }
 `;

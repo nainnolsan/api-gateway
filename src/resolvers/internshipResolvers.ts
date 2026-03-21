@@ -73,6 +73,10 @@ export const internshipResolvers = {
       requireAuth(context);
       return context.internshipAPI.getEmailCenter(getUpstreamContext(context));
     },
+    internshipStageLayout: async (_: unknown, __: unknown, context: GatewayContext) => {
+      requireAuth(context);
+      return context.internshipAPI.getStageLayout(getUpstreamContext(context));
+    },
   },
   Mutation: {
     createInternshipApplication: async (
@@ -130,6 +134,14 @@ export const internshipResolvers = {
     ) => {
       requireAuth(context);
       return context.internshipAPI.connectEmailProvider(provider, getUpstreamContext(context));
+    },
+    saveInternshipStageLayout: async (
+      _: unknown,
+      { layout }: { layout: Array<{ id: string; label: string; enabled: boolean; isCustom: boolean }> },
+      context: GatewayContext,
+    ): Promise<ActionResponse> => {
+      requireAuth(context);
+      return context.internshipAPI.saveStageLayout(layout, getUpstreamContext(context));
     },
   },
 };

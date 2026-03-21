@@ -127,6 +127,14 @@ export interface EmailCenter {
   threads: EmailThread[];
 }
 
+export interface StageLayoutItem {
+  id: string;
+  label: string;
+  position: number;
+  enabled: boolean;
+  isCustom: boolean;
+}
+
 // ---- Service-level response shapes (internal) ----
 
 interface ServiceWrapper<T> {
@@ -144,6 +152,14 @@ interface ServiceMetricsData {
 interface ServiceFunnelFlowData {
   nodes: FunnelNode[];
   links: FunnelLink[];
+}
+
+interface ServiceStageLayoutData {
+  id: string;
+  label: string;
+  position: number;
+  enabled: boolean;
+  isCustom: boolean;
 }
 
 interface ServiceApplication {
@@ -430,6 +446,22 @@ export class InternshipAPI extends RestClient {
     _context: UpstreamRequestContext
   ): Promise<{ redirectUrl: string }> {
     return Promise.resolve({ redirectUrl: '' });
+  }
+
+  async getStageLayout(context: UpstreamRequestContext): Promise<StageLayoutItem[]> {
+    const res = await this.get<ServiceWrapper<ServiceStageLayoutData[]>>('/api/settings/stage-layout', context);
+    return res.data ?? [];
+  }
+
+  async saveStageLayout(
+    layout: Array<{ id: string; label: string; enabled: boolean; isCustom: boolean }>,
+    context: UpstreamRequestContext,
+  ): Promise<ActionResponse> {
+    await this.patch<ServiceWrapper<unknown>>('/api/settings/stage-layout', context, { layout });
+    return {
+      success: true,
+      message: 'Stage layout saved successfully',
+    };
   }
 
   healthCheck(path: string, requestId: string): Promise<ServiceHealth> {
