@@ -19,12 +19,40 @@ export const typeDefs = `#graphql
     outlook
   }
 
+  type ScrapingPreference {
+    keyword: String!
+    location: String
+  }
+
   # User Type
   type User {
     id: ID!
     name: String!
     email: String!
     createdAt: String
+    scrapingPreferences: [ScrapingPreference!]
+  }
+
+  type ScrapedJob {
+    _id: ID!
+    title: String!
+    company: String!
+    location: String!
+    link: String!
+    platform: String!
+    description: String
+    postedDate: String
+    extractedAt: String!
+  }
+
+  type JobInteraction {
+    job_id: String!
+    status: String!
+  }
+
+  input ScrapingPreferenceInput {
+    keyword: String!
+    location: String
   }
 
   # Authentication Response
@@ -236,6 +264,10 @@ export const typeDefs = `#graphql
     internshipAnalyticsOverview: AnalyticsOverview!
     internshipEmailCenter: EmailCenter!
     internshipStageLayout: [StageLayoutItem!]!
+
+    # SaaS Discovery
+    scrapedJobs(keyword: String, location: String): [ScrapedJob!]!
+    swipeHistory: [JobInteraction!]!
   }
 
   # Mutations
@@ -271,5 +303,9 @@ export const typeDefs = `#graphql
     deleteInternshipStageEvent(id: ID!, eventId: ID!): Response!
     connectInternshipEmailProvider(provider: EmailProvider!): EmailConnectionPayload!
     saveInternshipStageLayout(layout: [StageLayoutItemInput!]!): Response!
+
+    # SaaS Discovery
+    updateScrapingPreferences(preferences: [ScrapingPreferenceInput!]!): Response!
+    swipeJob(jobId: String!, status: String!, companyName: String, roleTitle: String, location: String, url: String): Response!
   }
 `;

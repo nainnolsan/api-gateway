@@ -4,11 +4,13 @@ import jwt from 'jsonwebtoken';
 import { config } from './config';
 import { AuthAPI } from './dataSources/authAPI';
 import { InternshipAPI } from './dataSources/internshipAPI';
+import { ScraperAPI } from './dataSources/scraperAPI';
 import { AuthenticatedUser } from './types';
 
 export interface GatewayContext {
   authAPI: AuthAPI;
   internshipAPI: InternshipAPI;
+  scraperAPI: ScraperAPI;
   token?: string;
   authHeader?: string;
   requestId: string;
@@ -80,6 +82,11 @@ export const createContext = async ({
     authAPI,
     internshipAPI: new InternshipAPI(
       config.internshipServiceUrl,
+      config.http.timeoutMs,
+      config.http.retries
+    ),
+    scraperAPI: new ScraperAPI(
+      config.jobScraperServiceUrl,
       config.http.timeoutMs,
       config.http.retries
     ),

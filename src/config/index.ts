@@ -7,6 +7,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   authServiceUrl: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
   internshipServiceUrl: process.env.INTERNSHIP_SERVICE_URL || 'http://localhost:3002',
+  jobScraperServiceUrl: process.env.JOB_SCRAPER_SERVICE_URL || 'http://localhost:3004',
   corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map(o => o.trim()),
   jwtSecret: process.env.JWT_SECRET || 'your_jwt_secret_key_here',
   health: {

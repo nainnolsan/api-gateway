@@ -77,6 +77,10 @@ export const internshipResolvers = {
       requireAuth(context);
       return context.internshipAPI.getStageLayout(getUpstreamContext(context));
     },
+    swipeHistory: async (_: unknown, __: unknown, context: GatewayContext) => {
+      requireAuth(context);
+      return context.internshipAPI.getSwipeHistory(getUpstreamContext(context));
+    },
   },
   Mutation: {
     createInternshipApplication: async (
@@ -142,6 +146,23 @@ export const internshipResolvers = {
     ): Promise<ActionResponse> => {
       requireAuth(context);
       return context.internshipAPI.saveStageLayout(layout, getUpstreamContext(context));
+    },
+
+    swipeJob: async (
+      _: unknown,
+      args: { jobId: string; status: string; companyName?: string; roleTitle?: string; location?: string; url?: string },
+      context: GatewayContext
+    ): Promise<ActionResponse> => {
+      requireAuth(context);
+      return context.internshipAPI.swipeJob(
+        args.jobId,
+        args.status,
+        args.companyName,
+        args.roleTitle,
+        args.location,
+        args.url,
+        getUpstreamContext(context)
+      );
     },
   },
 };

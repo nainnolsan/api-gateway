@@ -140,6 +140,7 @@ export interface StageLayoutItem {
 interface ServiceWrapper<T> {
   success: boolean;
   data: T;
+  message?: string;
 }
 
 interface ServiceMetricsData {
@@ -461,6 +462,35 @@ export class InternshipAPI extends RestClient {
     return {
       success: true,
       message: 'Stage layout saved successfully',
+    };
+  }
+
+  // SaaS Discovery
+  async getSwipeHistory(context: UpstreamRequestContext): Promise<Array<{ job_id: string; status: string }>> {
+    const res = await this.get<ServiceWrapper<Array<{ job_id: string; status: string }>>>('/api/discovery/history', context);
+    return res.data ?? [];
+  }
+
+  async swipeJob(
+    jobId: string,
+    status: string,
+    companyName: string | undefined | null,
+    roleTitle: string | undefined | null,
+    location: string | undefined | null,
+    url: string | undefined | null,
+    context: UpstreamRequestContext
+  ): Promise<ActionResponse> {
+    const res = await this.post<ServiceWrapper<unknown>>('/api/discovery/swipe', context, {
+      jobId,
+      status,
+      companyName,
+      roleTitle,
+      location,
+      url,
+    });
+    return {
+      success: res.success,
+      message: res.message || `Trabajo ${status}`,
     };
   }
 

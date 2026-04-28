@@ -94,6 +94,23 @@ export class RestClient {
     });
   }
 
+  protected async put<T>(
+    path: string,
+    context: UpstreamRequestContext,
+    data?: unknown,
+    retryable = false
+  ): Promise<T> {
+    return this.request<T>({
+      method: 'PUT',
+      path,
+      data,
+      requestId: context.requestId,
+      authHeader: context.authHeader,
+      identity: context.identity,
+      retryable,
+    });
+  }
+
   protected async patch<T>(
     path: string,
     context: UpstreamRequestContext,

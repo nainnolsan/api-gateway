@@ -81,6 +81,18 @@ export class AuthAPI extends RestClient {
     return this.get('/api/auth/profile', context);
   }
 
+  async updateScrapingPreferences(
+    preferences: Array<{ keyword: string; location?: string | null }>,
+    requestId: string,
+    token: string
+  ): Promise<{ success: boolean; message: string }> {
+    const context: UpstreamRequestContext = {
+      requestId,
+      authHeader: `Bearer ${token}`,
+    };
+    return this.put('/api/users/preferences', context, { preferences });
+  }
+
   healthCheck(path: string, requestId: string): Promise<ServiceHealth> {
     return super.healthCheck(path, requestId);
   }

@@ -141,5 +141,29 @@ export const authResolvers = {
         throw error;
       }
     },
+
+    // SaaS Discovery
+    updateScrapingPreferences: async (
+      _: unknown,
+      { preferences }: { preferences: Array<{ keyword: string; location?: string | null }> },
+      context: GatewayContext
+    ) => {
+      const { authAPI, token } = context;
+      if (!token) {
+        throw new GraphQLError('No estás autenticado', {
+          extensions: { code: 'UNAUTHENTICATED' },
+        });
+      }
+
+      try {
+        const result = await authAPI.updateScrapingPreferences(preferences, context.requestId, token);
+        return {
+          success: result.success,
+          message: result.message,
+        };
+      } catch (error) {
+        throw error;
+      }
+    },
   },
 };

@@ -9,7 +9,7 @@ import { createContext } from './context';
 import { config } from './config';
 import { AuthAPI } from './dataSources/authAPI';
 import { InternshipAPI } from './dataSources/internshipAPI';
-
+import { ScraperAPI } from './dataSources/scraperAPI';
 
 async function startServer() {
   // Create Express app
@@ -17,6 +17,11 @@ async function startServer() {
   const authAPI = new AuthAPI(config.authServiceUrl, config.http.timeoutMs, config.http.retries);
   const internshipAPI = new InternshipAPI(
     config.internshipServiceUrl,
+    config.http.timeoutMs,
+    config.http.retries
+  );
+  const scraperAPI = new ScraperAPI(
+    config.jobScraperServiceUrl,
     config.http.timeoutMs,
     config.http.retries
   );
